@@ -1,1 +1,1 @@
-ssh -o StrictHostKeyChecking=no -i ~/.ssh/hackathon.rsa outscale@148.253.85.189
+ssh -o StrictHostKeyChecking=no -i ~/.ssh/hackathon.rsa outscale@171.33.69.107
