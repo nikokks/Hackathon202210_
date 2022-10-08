@@ -40,6 +40,7 @@ def main():
 
         # We process the first file
         file = files[0]
+        #file = "input_test.json"
         time.sleep(5) # make sure that file is completely uploaded
         with open(os.path.join(INPUT_FOLDER, file), 'r') as f:
             try:
@@ -50,45 +51,64 @@ def main():
         
         tmp_path = f"/tmp/{os.path.splitext(file)[0]}.txt"
         print("tmp_path:", tmp_path)
+        
 
+        # Group command by same type
+        commands_sorted = {}
+        
+        for id, command in commands.items():
+            print(f"id: {id}, command: {command}")
+            
+            try:
+                command_type = command.get("type")
+                if command_type not in commands_sorted: 
+                    commands_sorted[command_type] = [(id, command.get("arguments"))]
+                else:
+                    commands_sorted[command_type].append((id, command.get("arguments")))
+                
+            except Exception as e:
+                print(e)
+                continue
+        
         # For each command within the file perform an action
+        results = {}
+        for command_type, tasks in commands_sorted:
+            for id, arguments in tasks:
+                if command_type == "prime_numbers":
+                    output = prime_numbers(**arguments)
+                elif command_type == "sum_prime_numbers":
+                    output = sum_prime_numbers(**arguments)   
+                elif command_type == "clone_product":
+                    output = clone_product(**arguments)        
+                elif command_type == "delete_product":
+                    output = delete_product(**arguments)
+                elif command_type == "sum_of_prices":
+                    output = sum_of_prices(**arguments)      
+                elif command_type == "parse_transport_stream":
+                    output = parse_transport_stream(**arguments)
+                elif command_type == "cmd_fact":
+                    output = cmd_fact(**arguments)
+                elif command_type == "get_x_max":
+                    output = get_x_max(**arguments)
+                elif command_type == "templating_dlms":
+                    output = templating_dlms(**arguments)
+                elif command_type == "decode_frame":
+                    output = decode_frame(**arguments)          
+                elif command_type == "sink_aggregation":
+                    output = sink_aggregation(**arguments)
+                else:
+                    output = f"{command.get('type')} not handled"
+                results[id] = output
+
         with open(tmp_path, 'w') as f:
-            for id, command in commands.items():
-                print(f"id: {id}, command: {command}")
+            for id in range(1, len(results) + 1):
+                f.write(f"{id} {results[id]}\n")
+            
 
-                try:
-                    command_type = command.get("type")
-                    if command_type == "prime_numbers":
-                        output = prime_numbers(**command.get("arguments"))
-                    elif command_type == "sum_prime_numbers":
-                        output = sum_prime_numbers(**command.get("arguments"))    
-                    elif command_type == "clone_product":
-                        output = clone_product(**command.get("arguments"))        
-                    elif command_type == "delete_product":
-                        output = delete_product(**command.get("arguments"))
-                    elif command_type == "sum_of_prices":
-                        output = sum_of_prices(**command.get("arguments"))      
-                    elif command_type == "parse_transport_stream":
-                        output = parse_transport_stream(**command.get("arguments"))
-                    elif command_type == "cmd_fact":
-                        output = cmd_fact(**command.get("arguments"))
-                    elif command_type == "get_x_max":
-                        output = get_x_max(**command.get("arguments"))
-                    elif command_type == "templating_dlms":
-                        output = templating_dlms(**command.get("arguments"))
-                    elif command_type == "decode_frame":
-                        output = decode_frame(**command.get("arguments"))          
-                    elif command_type == "sink_aggregation":
-                        output = sink_aggregation(**command.get("arguments"))
+        
 
-                    else:
-                        output = f"{command.get('type')} not handled"
-
-                    f.write(f"{id} {output}\n")
-
-                except Exception as e:
-                    print(e)
-                    continue
+        #print(commands_sorted)
+        #print(prime_commands)
 
         # Once the file is processed delete it
         os.remove(os.path.join(INPUT_FOLDER, file))
