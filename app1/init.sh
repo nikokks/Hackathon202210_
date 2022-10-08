@@ -54,9 +54,24 @@ sudo apt-get install unzip -y
 # sudo docker compose up -d
 
 # Install Python
-sudo apt-get -y install python3
+sudo apt-get -y install python4
+sudo apt-get -y install python3-venv
 sudo apt-get -y install python3-pip
 sudo apt-get -y install python3-pymongo
+
+# Install Rust
+sudo apt-get install -y rustc cargo
+
+# Install Maturin for Rust bindings
+python3 -m venv .env
+source .env/bin/activate
+pip3 install maturin
+
+# Clone math library and compile
+git clone https://github.com/mpasto/rustmath
+cd rustmath
+maturin develop --release
+cd ..
 
 # Install application
 mkdir /data/code
