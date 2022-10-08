@@ -45,30 +45,23 @@ MONGO_DB_COLLECTION_NAME = "wifi"
 
 # Main function
 def sink_aggregation(json_data):
+    startTime, endTime = find_min_max(json_data["wifiData"],"eventTime")
+    minRSSI, maxRSSI, avgRSSI = find_min_max_avg(json_data["wifiData"],"rssi")
+
     aggregate_data = {
-        "identifier": None,
-        "manufacturerName": None,
-        "startTime": None,
-        "endTime": None,
+        "identifier": json_data["info"]["identifier"],
+        "manufacturerName": json_data["info"]["manufacturerName"],
+        "startTime": startTime,
+        "endTime": endTime,
         "wifiAggregate": {
-            "deviceType" : None,
-            "minRSSI": None,
-            "avgRSSI": None,
-            "maxRSSI": None,
-            "countBandChange" : None
+            "deviceType" : json_data["wifiData"][0]["deviceType"],
+            "minRSSI": minRSSI,
+            "avgRSSI": avgRSSI,
+            "maxRSSI": maxRSSI,
+            "countBandChange" : count_value_change(json_data["wifiData"],"connection")
         },
-        "anomalies_report" : []
+        "anomalies_report" : detect_anomaly_min(json_data["wifiData"],"rssi",RSSITHRESHOLD)
     }
-    aggregate_data["identifier"] = json_data["info"]["identifier"]
-    aggregate_data["manufacturerName"] = json_data["info"]["manufacturerName"]
-    aggregate_data["startTime"] = find_min(json_data["wifiData"],"eventTime")
-    aggregate_data["endTime"] = find_max(json_data["wifiData"],"eventTime")
-    aggregate_data["wifiAggregate"]["deviceType"] = json_data["wifiData"][0]["deviceType"]
-    aggregate_data["wifiAggregate"]["countBandChange"] = count_value_change(json_data["wifiData"],"connection")
-    aggregate_data["wifiAggregate"]["minRSSI"] = find_min(json_data["wifiData"],"rssi")
-    aggregate_data["wifiAggregate"]["maxRSSI"] = find_max(json_data["wifiData"],"rssi")
-    aggregate_data["wifiAggregate"]["avgRSSI"] = calculate_avg(json_data["wifiData"],"rssi")
-    aggregate_data["anomalies_report"] = detect_anomaly_min(json_data["wifiData"],"rssi",RSSITHRESHOLD)
 
     identifier_data = json_data["info"]["identifier"]
 
@@ -83,61 +76,73 @@ def sink_aggregation(json_data):
         result_aggregate_data = {}
     return result_aggregate_data
 
+def find_min_max(array,key):
+    if (length :=len(array)) <= 0:
+        return None, None
+    if length % 2 == 1:
+        min = max = array[0][key]
+        begin = 1
+    else:
+        min, max = array[0][key], array[1][key]
+        if min > max:
+            min, max = max, min
+        begin = 2
+    for i in range(begin, length, 2):
+        v1, v2 = array[i][key], array[i+1][key]
+        if v1 > v2:
+            v1, v2 = v2, v1 # guarantee v1 <= v2
+        if v1 < min:
+            min = v1
+        if v2 > max:
+            max = v2
+    return min, max
 
-def find_min(array,key):
-    if len(array) >0:
-        min = array[0][key]
-        for i in range(len(array)):
-            if array[i][key] != None:
-                if array[i][key] < min:
-                    min = array[i][key]
-        return min 
-    return None
-
-def find_max(array,key):
-    if len(array) >0:
-        max = array[0][key]
-        for i in range(len(array)):
-            if array[i][key] != None:
-                if array[i][key] > max:
-                    max = array[i][key]
-        return max 
-    return None
+def find_min_max_avg(array,key):
+    if (length :=len(array)) <= 0:
+        return None, None, None
+    if length % 2 == 1:
+        culmu = min = max = array[0][key]
+        begin = 1
+    else:
+        min, max = array[0][key], array[1][key]
+        culmu = min + max
+        if min > max:
+            min, max = max, min
+        begin = 2
+    for i in range(begin, length, 2):
+        v1, v2 = array[i][key], array[i+1][key]
+        culmu += v1
+        culmu += v2
+        if v1 > v2:
+            v1, v2 = v2, v1 # guarantee v1 <= v2
+        if v1 < min:
+            min = v1
+        if v2 > max:
+            max = v2
+    return min, max, culmu//length
 
 def count_value_change(array,key):
-    counter = 0
     if len(array) > 0:
+        counter = 0
         ref_value = array[0][key]
-        for i in range(len(array)):
-            if ref_value != array[i][key]:
+        for i in range(1, len(array)):
+            if ref_value != (current := array[i][key]):
                 counter += 1
-                ref_value = array[i][key]
+                ref_value = current
         return counter
     return None
 
-def calculate_avg(array,key):
-    if len(array) > 0:
-        sum = 0
-        for i in range(len(array)):
-            sum += array[i][key]
-        return sum//len(array)
-    return None
-      
 def detect_anomaly_min(array,key,threshold):
     array_anomaly = []
-    if len(array) > 0:
-        for i in range(len(array)):
-            if array[i][key] < threshold:
-                anomaly_report = {
-                    "eventTime": None,
-                    "deviceType": None,
-                    "rssi": None
-                }
-                anomaly_report["eventTime"] = array[i]["eventTime"]
-                anomaly_report["deviceType"] = array[i]["deviceType"]
-                anomaly_report["connection"] = array[i]["connection"]
-                anomaly_report["rssi"] = array[i]["rssi"]
-                array_anomaly.append(anomaly_report)
+    for entry in array:
+        if entry[key] < threshold:
+            anomaly_report = {
+                "eventTime": entry["eventTime"],
+                "deviceType": entry["deviceType"],
+                "rssi": entry["rssi"],
+                "connection": entry["connection"]
+            }
+            array_anomaly.append(anomaly_report)
     return array_anomaly
 
 

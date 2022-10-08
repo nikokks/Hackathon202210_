@@ -13,23 +13,7 @@
 # n must be changed to 1 of negative or null  
 # the naive algorithm implemeted 
 # run is the function called by the test runner
-
-
-
-def max_in_list(s): 
-    pairs=s.replace("(",'').replace(")","").split(';')
-    m = -1
-    key= "NONE"
-    d={}
-    for pair in pairs:
-        kv=pair.split(',')
-        i=int(kv[1])
-        d[kv[0]]=i
-        if(m < i):
-            m=i
-            key=kv[0]
-    
-    return key+","+str(m)
+import heapq
 
 def get_x_max(path,n):
     nbmax=int(n)
@@ -38,18 +22,10 @@ def get_x_max(path,n):
 
     flist=open(path,'r')
     s=flist.read()
-    keys=[]
-    while len(keys) < nbmax :
-        max=max_in_list(s)
-        keys.append(max.split(",")[0])
-        s=s.replace("("+str(max)+");","").replace(";("+str(max)+")","")
+    nlargest = max_in_list(s, n)
+    return str([pair[0] for pair in nlargest])
 
-    return str(keys)
-
-
-
-
-
-
-
-
+def max_in_list(s, n):
+    pairs=[pair[1:-1].split(',') for pair in s.split(';')]
+    # print(pairs)
+    return heapq.nlargest(n, pairs, key=lambda x:int(x[1]))
